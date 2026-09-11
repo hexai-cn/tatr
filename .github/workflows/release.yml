@@ -1,0 +1,160 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  # 注：仅支持 tag 触发发布；手动触发请先打 tag（避免出现"版本号来源不明"的制品）
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: write
+
+jobs:
+  # 发布前门禁：lint 与测试必须全绿，避免把坏制品推出去
+  verify:
+    name: verify (lint + test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo test --workspace --locked
+
+  # 四平台矩阵构建
+  build:
+    name: build (${{ matrix.target }})
+    needs: verify
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-14, target: aarch64-apple-darwin }        # macOS arm64
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu }   # Linux amd64
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu } # Linux arm64
+          - { os: windows-latest, target: x86_64-pc-windows-msvc }    # Windows amd64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: 构建
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      - name: 版本一致性自检（tag 必须与 Cargo.toml 一致）
+        shell: bash
+        run: |
+          # 用 grep+sed 而非 python3：windows runner 上 `python3` 不保证存在
+          VERSION="$(grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')"
+          test -n "$VERSION" || { echo "::error::无法从 Cargo.toml 解析版本"; exit 1; }
+          echo "解析到版本: $VERSION"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            REF="${GITHUB_REF_NAME#v}"
+            if [[ "$REF" != "$VERSION" ]]; then
+              echo "::error::tag($REF) 与 Cargo.toml 版本($VERSION) 不一致"
+              exit 1
+            fi
+          fi
+
+      - name: 制品自检（能否运行）
+        shell: bash
+        run: |
+          BIN="target/${{ matrix.target }}/release"
+          if [[ "${{ matrix.target }}" == *windows* ]]; then
+            "$BIN/tatr.exe" --version
+          else
+            "$BIN/tatr" --version
+          fi
+
+      - name: 打包
+        shell: bash
+        run: |
+          BIN="target/${{ matrix.target }}/release"
+          ./tools/release/package.sh "$VERSION" "${{ matrix.target }}" "$BIN" dist
+
+      - name: 上传制品
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  # 汇总校验和并发布
+  publish:
+    name: publish (checksums + release)
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: 解析版本
+        # 本 job 不 checkout 源码，故从 tag 名取版本（build job 已断言 tag == Cargo.toml version）
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          test -n "$VERSION" || { echo "::error::无法从 tag 解析版本"; exit 1; }
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "版本: $VERSION"
+          # 断言制品确实存在（防止矩阵某平台静默缺失）
+          for t in aarch64-apple-darwin x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu; do
+            test -f "dist/tatr-${VERSION}-${t}.tar.gz" || { echo "::error::缺少 $t 制品"; exit 1; }
+          done
+          test -f "dist/tatr-${VERSION}-x86_64-pc-windows-msvc.zip" || { echo "::error::缺少 windows 制品"; exit 1; }
+
+      - name: 生成 SHA256SUMS
+        run: |
+          cd dist
+          # 只对制品求校验和：`sha256sum *` 会把重定向刚创建的 SHA256SUMS 也算进去
+          sha256sum tatr-* > SHA256SUMS
+          echo "--- 制品清单 ---"
+          cat SHA256SUMS
+
+      - name: 发布 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          body: |
+            ## 平台制品
+
+            | 平台 | 文件 |
+            |---|---|
+            | macOS arm64 | `tatr-${{ env.VERSION }}-aarch64-apple-darwin.tar.gz` |
+            | Linux amd64 | `tatr-${{ env.VERSION }}-x86_64-unknown-linux-gnu.tar.gz` |
+            | Linux arm64 | `tatr-${{ env.VERSION }}-aarch64-unknown-linux-gnu.tar.gz` |
+            | Windows amd64 | `tatr-${{ env.VERSION }}-x86_64-pc-windows-msvc.zip` |
+
+            归档内含 `tatr`（CLI）与 `tatr-http`（服务）、LICENSE 与快速上手文档。
+
+            ## 模型
+
+            可执行文件**不含模型**。首次运行自动下载到 `~/.cache/tatr/` 并校验 sha256：
+
+            ```bash
+            tatr model fetch          # 预下载
+            tatr detect page.png      # 或直接运行（自动下载）
+            ```
+
+            模型资产见 [models-v1](https://github.com/hexai-cn/tatr/releases/tag/models-v1)，
+            sha256 固化在 `crates/tatr-engine/src/model.rs`。
+
+            ## 校验
+
+            ```bash
+            sha256sum -c SHA256SUMS
+            ```

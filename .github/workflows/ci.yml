@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+permissions:
+  contents: read
+
+jobs:
+  # 快速门禁：格式与静态检查只跑一次（平台无关），失败即快速反馈
+  lint:
+    name: fmt + clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo fmt --check
+        run: cargo fmt --all -- --check
+      - name: cargo clippy -D warnings
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+  # 四平台测试：单元测试不依赖模型，可在所有平台无网络运行
+  test:
+    name: test (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-14, target: aarch64-apple-darwin }      # Apple Silicon
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu }
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: cargo test
+        run: cargo test --workspace --locked --target ${{ matrix.target }}
+
+      - name: 构建 release 产物
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      - name: 冒烟：CLI 参数解析可用
+        shell: bash
+        run: |
+          BIN="target/${{ matrix.target }}/release"
+          if [[ "${{ matrix.target }}" == *windows* ]]; then
+            EXE=".exe"
+          else
+            EXE=""
+          fi
+          # tatr 用 clap，--version/--help 安全
+          "$BIN/tatr${EXE}" --version
+          "$BIN/tatr${EXE}" --help > /dev/null
+          # tatr-http 由环境变量配置（无 clap），运行它会直接开始监听；
+          # 这里只校验二进制产出且非空，不启动进程（CI 中无模型可加载）
+          HTTP="$BIN/tatr-http${EXE}"
+          test -s "$HTTP" || { echo "::error::缺少 tatr-http 产物"; exit 1; }
+          echo "tatr-http 产物: $(wc -c < "$HTTP") 字节"
