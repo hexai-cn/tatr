@@ -17,6 +17,10 @@ BIN_DIR="${3:?bin dir}"
 OUT_DIR="${4:?out dir}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# 输出目录**绝对化**：Windows 分支会 `cd` 进 staging 再调 7z，
+# 若 $ARCHIVE 是相对路径，压缩包会被写进 staging 内部并被 trap 清理掉。
+mkdir -p "$OUT_DIR"
+OUT_DIR="$(cd "$OUT_DIR" && pwd)"
 EXE=""
 if [[ "$TRIPLE" == *windows* ]]; then
     EXE=".exe"

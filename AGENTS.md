@@ -37,7 +37,7 @@
 ```bash
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace            # 24 项
+cargo test --workspace            # 28 项
 cargo build --release --workspace
 
 # 基线复跑（需要 TableBank parquet）

@@ -48,6 +48,7 @@ summary: tatr 产品定位、目标用户、范围、非功能需求与成功标
 | 能力 | 说明 |
 |---|---|
 | 检测 | 输出框（像素坐标）、置信度、`table` / `table_rotated` 类别 |
+| 定位可视化 | CLI `--viz <dir>` 为每张输入写出带框标注图（PNG），供人工核对定位效果 |
 | 阈值与缩放可调 | `threshold`、`short_side`、`long_side`、`nms_iou` |
 | 旋转表格 | 默认保留（实测零误检代价提升召回，见 `testing/baselines.md`） |
 | 模型治理 | sha256 校验、缓存、离线路径，启动期即失败 |

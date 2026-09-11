@@ -15,6 +15,9 @@ cargo build --release
 # CLI（首次运行自动下载模型并校验 sha256）
 ./target/release/tatr detect page.png --out result.json
 
+# 定位可视化：为每张输入写出带框标注图（绿=table，橙=table_rotated）
+./target/release/tatr detect --viz /tmp/viz page1.png page2.png
+
 # HTTP 服务
 TATR_MODEL=~/.cache/tatr/table_detector.onnx TATR_BIND=0.0.0.0:8080 \
   ./target/release/tatr-http
@@ -63,7 +66,7 @@ for d in out.detections {
 > 且 TableBank 每页 ≤5 表，**测不到**单页 10–40 表的表单场景——这是已知盲区，
 > 见 [`docs/PRD.md`](docs/PRD.md) §7。
 
-复跑：`docs/testing/baselines.md`；门禁：`cargo test --workspace`（24 项）。
+复跑：`docs/testing/baselines.md`；门禁：`cargo test --workspace`（28 项）。
 
 ## 仓库结构
 

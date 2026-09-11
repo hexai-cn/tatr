@@ -50,9 +50,21 @@ cargo build --release
 | 开关 | 作用 |
 |---|---|
 | `--threshold 0.3` | 降低阈值换召回（会增误检） |
+| `--viz out/` | 为每张输入写出标注框 PNG（`out/<名字>.viz.png`），用于人工核对定位效果 |
 | `--drop-rotated` | 丢弃 `table_rotated` 类（**默认保留**，实测更好） |
 | `--threads N` | ORT 线程数（默认物理核数） |
 | `--short-side/--long-side` | 输入缩放（默认 800/800） |
+
+### 定位可视化
+
+```bash
+./target/release/tatr detect --viz /tmp/viz page1.png page2.png
+# /tmp/viz/page1.viz.png、/tmp/viz/page2.viz.png
+```
+
+标注图画在原图副本上，边框颜色区分类别：**绿 = `table`**、**橙 = `table_rotated`**；
+线宽随页面尺寸自适应（2–8 px）。JSON 仍是唯一的结果事实来源（stdout 保持纯 JSON），
+标注图只做可视化，不参与指标计算。
 
 模型管理：
 
@@ -100,6 +112,6 @@ curl -s -X POST -F file=@page.png 'localhost:8080/v1/detect/multipart?threshold=
 ## 5. 验证
 
 ```bash
-cargo test --workspace       # 24 项
+cargo test --workspace       # 28 项
 cargo clippy --workspace --all-targets -- -D warnings
 ```

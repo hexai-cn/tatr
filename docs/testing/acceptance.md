@@ -20,7 +20,7 @@ cargo build --release --workspace
 |---|---|
 | `fmt --check` | 格式（`rustfmt.toml`：max_width 120） |
 | `clippy -D warnings` | 静态缺陷；**零警告**是硬要求 |
-| `test` | 24 项单元/集成测试（见 §3） |
+| `test` | 28 项单元/集成测试（见 §3） |
 | `build --release` | 发布构建可产出（LTO thin） |
 
 ## 2. 行为验收口径
@@ -47,16 +47,16 @@ cargo build --release --workspace
 | 模型契约 | 构造期校验 IO 名称与形状，坏模型必须启动失败 |
 | 服务 | 探针可用；非法输入返回 400 且错误体可机读；SIGTERM 优雅退出 |
 
-## 3. 测试清单（24 项）
+## 3. 测试清单（28 项）
 
 | 模块 | 数量 | 覆盖 |
 |---|---|---|
 | `tatr-core::decode` | 6 | 坐标映射、**no-object 抑制回归**、rotated 过滤、越界裁剪与退化框、满 query 预算、缓冲长度校验 |
-| `tatr-core::preprocess` | 7 | 缩放语义（短边/长边）、非零尺寸、NCHW/mask/归一化、单调性与平面一致性、**PIL 参考对照**、**抗混叠性质**、非法缓冲 |
+| `tatr-core::preprocess` | 9 | 缩放语义（短边/长边）、非零尺寸、恒等缩放、NCHW/mask/归一化、单调性、**PIL 参考对照**、**抗混叠性质**、非法缓冲与非法配置 |
 | `tatr-core::nms` | 3 | 去重保留高分、不相交保留、阈值 1.0 等价关闭 |
-| `tatr-core::types` | 1 | 图像缓冲长度校验 |
 | `tatr-engine` | 5 | 模型缺失构造期失败、垃圾字节拒绝、线程优先级、sha256 已知向量、哈希校验 |
-| `tatr-cli` | 1 | 二进制可构建/基础路径 |
+| `tatr-cli::viz` | 4 | 标注图绘制（按类别着色、四边描边且内部不填充、框外不改像素、越界夹取、退化框、文件名派生） |
+| `tatr-engine` 文档示例 | 1 | `lib.rs` 用法示例可编译（doc-test） |
 
 ## 4. 退出标准（v0.1）
 

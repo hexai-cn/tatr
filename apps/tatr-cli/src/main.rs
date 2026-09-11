@@ -1,8 +1,9 @@
 //! # tatr — 表格检测命令行
 //!
 //! ```text
-//! tatr detect <image>...            # 输出 JSON 到 stdout
-//! tatr model info                   # 打印模型来源与线程配置
+//! tatr detect <image>...             # 输出 JSON 到 stdout
+//! tatr detect --viz out/ <image>...  # 额外写出标注图（PNG）
+//! tatr model info                    # 打印模型来源与线程配置
 //! ```
 //!
 //! CPU 部署：默认按物理核数设置 intra-op 线程，可用 `TATR_THREADS` 覆盖。
@@ -14,6 +15,8 @@ use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
 use tatr_core::DetectorConfig;
 use tatr_engine::{EngineOptions, ModelSource, TableDetectionEngine};
+
+mod viz;
 
 #[derive(Parser, Debug)]
 #[command(name = "tatr", version, about = "Table Transformer 表格检测 (CPU-first)")]
@@ -85,6 +88,10 @@ struct DetectArgs {
     /// 输出文件；省略则打印到 stdout
     #[arg(short, long)]
     out: Option<PathBuf>,
+
+    /// 可视化输出目录：为每张输入写出标注框 PNG（文件名 `<名字>.viz.png`）
+    #[arg(long, visible_alias = "visualize", value_name = "DIR")]
+    viz: Option<PathBuf>,
 
     /// intra-op 线程数（默认物理核数；等价于设置 TATR_THREADS）
     #[arg(long)]
@@ -168,6 +175,9 @@ fn run(cli: Cli) -> Result<()> {
             cfg.validate()?;
 
             let mut results = Vec::new();
+            if let Some(dir) = &args.viz {
+                std::fs::create_dir_all(dir).with_context(|| format!("创建可视化目录 {}", dir.display()))?;
+            }
             for path in &args.inputs {
                 let img =
                     tatr_engine::decode_image_file(path).with_context(|| format!("读取图像 {}", path.display()))?;
@@ -181,6 +191,12 @@ fn run(cli: Cli) -> Result<()> {
                     ms = format!("{:.0}", r.elapsed_ms),
                     "detected"
                 );
+                if let Some(dir) = &args.viz {
+                    let overlay = viz::render_detections(img, &r.detections);
+                    let dest = dir.join(viz::overlay_file_name(path));
+                    viz::write_png(overlay, &dest)?;
+                    tracing::info!(file = %dest.display(), "wrote overlay");
+                }
                 results.push(serde_json::json!({
                     "image": path.display().to_string(),
                     "width": r.width,
