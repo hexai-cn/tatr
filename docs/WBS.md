@@ -23,6 +23,10 @@ summary: tatr 工作分解、依赖与实施状态
 | W-0.8 | 模型发布（GitHub Release + sha256 固化） | W-0.7 | ✅ done |
 | W-0.9 | 推送 `hexai-cn/tatr` | W-0.6–0.8 | ✅ done |
 | W-0.10 | 三个真实缺陷修复（CLI 日志污染 stdout / 重采样混叠 / 模型下载管道） | W-0.7 | ✅ done |
+| W-0.11 | LICENSE 文件补齐（MIT + Apache-2.0，与 Cargo.toml 声明一致） | W-0.1 | ✅ done |
+| W-0.12 | CI 门禁：lint + 四平台测试矩阵（mac arm64 / linux amd64+arm64 / win amd64） | W-0.10 | ✅ done |
+| W-0.13 | 发布流水线：tag 触发 → 四平台构建 → SHA256SUMS → GitHub Release | W-0.12 | ✅ done |
+| W-0.14 | 打包脚本与制品可移植性（7-Zip 正斜杠 zip、绝对输出路径） | W-0.13 | ✅ done |
 
 ## 后续（未开始，按价值排序）
 
@@ -46,6 +50,7 @@ graph LR
   W04 --> W07[W-0.7 验证]
   W05 --> W07
   W07 --> W08[W-0.8 模型发布] --> W09[W-0.9 推送]
+  W07 --> W11c[W-0.11 LICENSE] --> W12c[W-0.12 CI 矩阵] --> W13c[W-0.13 发布流水线] --> W14c[W-0.14 打包修复]
   W07 --> W11[W-1.1 密集页标尺] --> W12[W-1.2 多表召回]
   W11 --> W21[W-2.1 模型替换评估]
 ```

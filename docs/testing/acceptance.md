@@ -23,6 +23,9 @@ cargo build --release --workspace
 | `test` | 28 项单元/集成测试（见 §3） |
 | `build --release` | 发布构建可产出（LTO thin） |
 
+以上门禁已由 CI 在四平台强制执行（`.github/workflows/ci.yml`，见 `guides/cicd.md`）。
+本地复跑用同样四条命令即可。
+
 ## 2. 行为验收口径
 
 ### 2.1 精度
@@ -47,16 +50,19 @@ cargo build --release --workspace
 | 模型契约 | 构造期校验 IO 名称与形状，坏模型必须启动失败 |
 | 服务 | 探针可用；非法输入返回 400 且错误体可机读；SIGTERM 优雅退出 |
 
-## 3. 测试清单（28 项）
+## 3. 测试清单（按模块）
 
-| 模块 | 数量 | 覆盖 |
-|---|---|---|
-| `tatr-core::decode` | 6 | 坐标映射、**no-object 抑制回归**、rotated 过滤、越界裁剪与退化框、满 query 预算、缓冲长度校验 |
-| `tatr-core::preprocess` | 9 | 缩放语义（短边/长边）、非零尺寸、恒等缩放、NCHW/mask/归一化、单调性、**PIL 参考对照**、**抗混叠性质**、非法缓冲与非法配置 |
-| `tatr-core::nms` | 3 | 去重保留高分、不相交保留、阈值 1.0 等价关闭 |
-| `tatr-engine` | 5 | 模型缺失构造期失败、垃圾字节拒绝、线程优先级、sha256 已知向量、哈希校验 |
-| `tatr-cli::viz` | 4 | 标注图绘制（按类别着色、四边描边且内部不填充、框外不改像素、越界夹取、退化框、文件名派生） |
-| `tatr-engine` 文档示例 | 1 | `lib.rs` 用法示例可编译（doc-test） |
+> 权威数量以 `cargo test --workspace` 输出为准——本文档**不硬编码总数**，
+> 避免与并行开发漂移。下表记录的是**覆盖内容**（哪些契约被钉住）。
+
+| 模块 | 覆盖 |
+|---|---|
+| `tatr-core::decode` | 坐标映射、**no-object 抑制回归**、rotated 过滤、越界裁剪与退化框、满 query 预算、缓冲长度校验 |
+| `tatr-core::preprocess` | 缩放语义（短边/长边）、非零尺寸、恒等缩放、NCHW/mask/归一化、单调性、**PIL 参考对照**、**抗混叠性质**、非法缓冲与非法配置 |
+| `tatr-core::nms` | 去重保留高分、不相交保留、阈值 1.0 等价关闭 |
+| `tatr-engine` | 模型缺失构造期失败、垃圾字节拒绝、线程优先级、sha256 已知向量、哈希校验 |
+| `tatr-cli::viz` | 标注图绘制（按类别着色、描边不填充、框外不改像素、越界夹取、退化框、文件名派生） |
+| doc-test | `tatr-engine` 的 `lib.rs` 用法示例可编译 |
 
 ## 4. 退出标准（v0.1）
 
@@ -64,9 +70,10 @@ cargo build --release --workspace
 |---|---|---|
 | S1 | CLI 与 HTTP 纯 CPU 端到端可用 | ✅ 见 `guides/quickstart.md` |
 | S2 | 复现 F1 0.780（仅 table）/ 0.786（默认） | ✅ 见 `baselines.md` |
-| S3 | 决策级行为有回归测试 | ✅ 24 项通过 |
+| S3 | 决策级行为有回归测试 | ✅ `cargo test --workspace` 全绿 |
 | S4 | 模型自动获取 + sha256 校验 | ✅ |
 | S5 | 探针 / 并发闸门 / 优雅退出 | ✅ |
+| S6 | 四平台 CI 门禁与可下载制品 | ✅ 见 `guides/cicd.md` |
 
 ## 5. 不通过条件
 
