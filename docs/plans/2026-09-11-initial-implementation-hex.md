@@ -23,7 +23,7 @@ summary: v0.1 首个实现计划：多 crate 引擎库 + CLI + HTTP 服务，含
 | HTTP 服务 | `/healthz` `/readyz` `/v1/model` `/v1/detect` `/v1/detect/multipart` 实测 |
 | 文档体系 | 本目录 + PRD/DESIGN/WBS + 3 specs + 2 testing + 3 ADR + 2 guides + 1 runbook + dev |
 | 评测工具 | `tools/bench/{prepare_tablebank,score}.py` 复跑基线 |
-| 模型发布 | GitHub Release 资产 + sha256 固化 |
+| 模型发布 | GitHub Release `models-v1` + sha256 固化；下载链路实测通过 |
 
 ## 验收结果
 
@@ -32,13 +32,13 @@ summary: v0.1 首个实现计划：多 crate 引擎库 + CLI + HTTP 服务，含
 | CPU 端到端（CLI + HTTP） | ✅ |
 | TableBank 300 页 F1 | ✅ 仅 table **0.780**；默认（含 rotated）**0.786** |
 | 行为回归测试 | ✅ 24 项通过 |
-| 模型自动获取 + sha256 | ✅ |
+| 模型自动获取 + sha256 | ✅ 下载 110 MB / 11.7 s，缓存命中 0.2 s，哈希匹配 |
 | 探针 / 并发闸门 / 优雅退出 | ✅ |
 
 性能（M5 Pro，release）：单页 median 46 ms（8 线程）；6 线程即饱和；
 二进制 26 MB、模型 110 MB，**无 Python/torch 运行时依赖**。
 
-## 过程中发现并修复的两个真实缺陷
+## 过程中发现并修复的三个真实缺陷
 
 1. **CLI 日志写 stdout**，污染 JSON 输出（`tatr detect | jq` 失败）。
    改为 `with_writer(std::io::stderr)`。
@@ -46,6 +46,9 @@ summary: v0.1 首个实现计划：多 crate 引擎库 + CLI + HTTP 服务，含
    （F1 0.791 vs 0.786，临界 query 分数跨阈值翻转）。
    改用抗混叠 Triangle，并加两条回归测试（PIL 对照 + 棋盘性质）。
    详见 ADR-0003。
+3. **模型下载经 stdout 管道**（`curl -o -`）在下载 110 MB Release 资产时失败
+   （`curl: (56) Recv failure`），且需把整份模型驻留内存。
+   改为 `curl -o <tmp>` 直写 + 原子 rename；实测 11.7 s 下载成功、缓存命中 0.2 s。
 
 ## 偏离与说明
 

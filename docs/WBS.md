@@ -22,6 +22,7 @@ summary: tatr 工作分解、依赖与实施状态
 | W-0.7 | CPU 端到端验证（CLI / HTTP / 基线复跑 / 对拍） | W-0.4, W-0.5 | ✅ done |
 | W-0.8 | 模型发布（GitHub Release + sha256 固化） | W-0.7 | ✅ done |
 | W-0.9 | 推送 `hexai-cn/tatr` | W-0.6–0.8 | ✅ done |
+| W-0.10 | 三个真实缺陷修复（CLI 日志污染 stdout / 重采样混叠 / 模型下载管道） | W-0.7 | ✅ done |
 
 ## 后续（未开始，按价值排序）
 
