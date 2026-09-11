@@ -112,6 +112,7 @@ summary: 30 字内一句话
 |---|---|
 | [`quickstart.md`](guides/quickstart.md) | 五分钟上手：CLI 与 HTTP |
 | [`cpu-deployment.md`](guides/cpu-deployment.md) | CPU 部署与吞吐调优 |
+| [`cicd.md`](guides/cicd.md) | CI/CD 流水线：四平台矩阵、制品与发布流程 |
 
 ### runbooks/
 

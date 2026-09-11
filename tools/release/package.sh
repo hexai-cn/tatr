@@ -41,9 +41,18 @@ cp "$ROOT/docs/testing/baselines.md" "$STAGE/docs/baselines.md"
 mkdir -p "$OUT_DIR"
 if [[ "$TRIPLE" == *windows* ]]; then
     ARCHIVE="${OUT_DIR}/tatr-${VERSION}-${TRIPLE}.zip"
-    # PowerShell 在所有 windows runner 上可用；bsdtar/GNU tar 对 zip 的支持不一致
-    powershell.exe -NoProfile -Command \
-        "Compress-Archive -Path '$(cygpath -w "$STAGE")\\*' -DestinationPath '$(cygpath -w "$ARCHIVE")' -Force"
+    # 不用 PowerShell 的 Compress-Archive：它写入**反斜杠**路径分隔符，
+    # Linux/macOS 解压会得到名为 `docs\baselines.md` 的文件（zip 规范要求正斜杠）。
+    # 7-Zip 是 GitHub Windows runner 预装工具，产出规范 zip。
+    if command -v 7z >/dev/null 2>&1; then
+        ( cd "$STAGE" && 7z a -tzip "$ARCHIVE" ./* >/dev/null )
+    elif [[ -x "/c/Program Files/7-Zip/7z.exe" ]]; then
+        ( cd "$STAGE" && "/c/Program Files/7-Zip/7z.exe" a -tzip "$ARCHIVE" ./* >/dev/null )
+    else
+        echo "错误: 需要 7z 才能产出路径分隔符规范的 zip" >&2
+        echo "      （不要退回 Compress-Archive：它会写反斜杠，破坏跨平台解压）" >&2
+        exit 1
+    fi
 else
     ARCHIVE="${OUT_DIR}/tatr-${VERSION}-${TRIPLE}.tar.gz"
     tar -czf "$ARCHIVE" -C "$STAGE" .
