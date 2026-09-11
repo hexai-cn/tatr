@@ -1,7 +1,7 @@
 //! 模型来源解析：本地路径 → 缓存 → 远程下载，并做 sha256 校验。
 
 use std::fs;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
@@ -123,41 +123,37 @@ pub fn file_sha256(path: &Path) -> Result<String, TatrError> {
     Ok(hex::encode(hasher.finalize()))
 }
 
-/// 最小依赖的 HTTPS 下载（先写临时文件再原子改名）。
+/// 最小依赖的 HTTPS 下载（curl 直写临时文件，成功后原子改名）。
+///
+/// 不用「curl 输出到 stdout 再写文件」：110 MB 走管道既容易触发
+/// `curl: (56) Recv failure`，又要把整份模型缓存在内存里。
+///
+/// 用系统 `curl` 而非引入 rustls/reqwest：下载是低频运维动作，
+/// 省下 TLS 栈的体积与依赖，也便于替换为企业内网代理。
 fn download(url: &str, dest: &Path) -> Result<(), TatrError> {
     tracing::info!(%url, path = %dest.display(), "下载模型");
-    let resp = ureq_get(url)?;
     let tmp = dest.with_extension("part");
-    {
-        let mut out = fs::File::create(&tmp).map_err(|e| TatrError::InvalidConfig(format!("创建临时文件失败: {e}")))?;
-        out.write_all(&resp)
-            .map_err(|e| TatrError::InvalidConfig(format!("写入模型失败: {e}")))?;
-        out.flush().ok();
-    }
-    fs::rename(&tmp, dest).map_err(|e| TatrError::InvalidConfig(format!("重命名模型失败: {e}")))?;
-    Ok(())
-}
-
-/// 通过外部 `curl` 取回 URL 内容，避免把 TLS 栈作为依赖引入。
-///
-/// 仓库只依赖 `ort`/`axum` 等必要项；模型下载是低频运维动作，用系统 `curl`
-/// 比引入 rustls/reqwest 更省体积，也便于用户替换为企业内网代理。
-fn ureq_get(url: &str) -> Result<Vec<u8>, TatrError> {
     let out = std::process::Command::new("curl")
-        .args(["-fL", "--retry", "3", "--connect-timeout", "20", "-o", "-", url])
+        .args(["-fL", "--retry", "3", "--connect-timeout", "20", "-o"])
+        .arg(&tmp)
+        .arg(url)
         .output()
         .map_err(|e| TatrError::InvalidConfig(format!("调用 curl 失败（请确认系统有 curl）: {e}")))?;
     if !out.status.success() {
+        let _ = fs::remove_file(&tmp);
         return Err(TatrError::InvalidConfig(format!(
-            "下载失败 {}: curl 退出码 {:?}",
-            url,
+            "下载失败 {url}: curl 退出码 {:?}",
             out.status.code()
         )));
     }
-    if out.stdout.is_empty() {
+    let size = fs::metadata(&tmp).map(|m| m.len()).unwrap_or(0);
+    if size == 0 {
+        let _ = fs::remove_file(&tmp);
         return Err(TatrError::InvalidConfig(format!("下载内容为空: {url}")));
     }
-    Ok(out.stdout)
+    fs::rename(&tmp, dest).map_err(|e| TatrError::InvalidConfig(format!("重命名模型失败: {e}")))?;
+    tracing::info!(bytes = size, "模型下载完成");
+    Ok(())
 }
 
 #[cfg(test)]
