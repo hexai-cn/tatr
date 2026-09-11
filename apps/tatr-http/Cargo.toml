@@ -1,0 +1,25 @@
+[package]
+name = "tatr-http"
+description = "tatr HTTP service: table detection endpoint, CPU-first"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "tatr-http"
+path = "src/main.rs"
+
+[dependencies]
+tatr-core = { workspace = true }
+tatr-engine = { workspace = true }
+axum = { workspace = true }
+tokio = { workspace = true }
+tower-http = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }

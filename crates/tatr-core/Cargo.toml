@@ -1,0 +1,14 @@
+[package]
+name = "tatr-core"
+description = "Table Transformer (DETR) detection core: types, preprocessing, decoding, NMS — pure algorithm, no inference runtime"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+image = { workspace = true }

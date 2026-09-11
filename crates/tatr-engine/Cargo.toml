@@ -1,0 +1,30 @@
+[package]
+name = "tatr-engine"
+description = "Table detection engine: model resolution (local/cache/URL+sha256), ONNX Runtime session, detection API for upper-layer integration"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+tatr-core = { workspace = true }
+
+ort = { workspace = true }
+ndarray = { workspace = true }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+image = { workspace = true }
+
+sha2 = { workspace = true }
+hex = { workspace = true }
+dirs = { workspace = true }
+
+tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

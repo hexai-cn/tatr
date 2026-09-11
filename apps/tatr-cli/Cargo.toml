@@ -1,0 +1,25 @@
+[package]
+name = "tatr-cli"
+description = "tatr command line interface: detect tables in images and PDF-less page renders"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "tatr"
+path = "src/main.rs"
+
+[dependencies]
+tatr-core = { workspace = true }
+tatr-engine = { workspace = true }
+
+anyhow = { workspace = true }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+image = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

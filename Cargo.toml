@@ -1,0 +1,60 @@
+[workspace]
+members = [
+    "crates/tatr-core",
+    "crates/tatr-engine",
+    "apps/tatr-cli",
+    "apps/tatr-http",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+authors = ["tatr contributors"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/hexai-cn/tatr"
+description = "Rust table detection (Table Transformer / DETR) — engine API + HTTP service, CPU-first"
+
+[workspace.dependencies]
+# Internal crates
+tatr-core = { path = "crates/tatr-core", version = "0.1.0" }
+tatr-engine = { path = "crates/tatr-engine", version = "0.1.0" }
+
+# Inference
+ort = "2.0.0-rc.13"
+ndarray = "0.17"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Error handling / CLI
+thiserror = "2"
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+
+# Image IO
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "bmp", "tiff"] }
+
+# HTTP service
+axum = { version = "0.8", features = ["json", "multipart"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "net"] }
+tower-http = { version = "0.6", features = ["trace", "limit", "cors"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Utilities
+sha2 = "0.10"
+hex = "0.4"
+dirs = "5"
+tempfile = "3"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+
+[profile.release-fat]
+inherits = "release"
+lto = "fat"
